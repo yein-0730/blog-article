@@ -1,6 +1,6 @@
 "use client";
 
-import { useReducer, useEffect, useCallback } from "react";
+import { useReducer, useEffect, useCallback, useRef } from "react";
 import type {
   AppState,
   Topic,
@@ -103,11 +103,20 @@ export default function Home() {
   const { showToast, ToastComponent } = useToast();
 
   // Fetch topics on mount
+  // Track previously shown topics to avoid duplicates on refresh
+  const previousTopicsRef = useRef<string[]>([]);
+
   const fetchTopics = useCallback(async () => {
     dispatch({ type: "SET_LOADING_TOPICS", payload: true });
     dispatch({ type: "SET_ERROR", payload: null });
     try {
-      const res = await fetch("/api/topics", { method: "POST" });
+      const res = await fetch("/api/topics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          previousTopics: previousTopicsRef.current,
+        }),
+      });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(
@@ -115,7 +124,13 @@ export default function Home() {
         );
       }
       const data = (await res.json()) as { topics?: Topic[] };
-      dispatch({ type: "SET_TOPICS", payload: data.topics || [] });
+      const newTopics = data.topics || [];
+      dispatch({ type: "SET_TOPICS", payload: newTopics });
+      // Add new topics to previous list
+      previousTopicsRef.current = [
+        ...previousTopicsRef.current,
+        ...newTopics.map((t) => t.title),
+      ].slice(-20); // keep last 20 to avoid prompt bloat
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "주제를 불러오지 못했습니다.";
@@ -172,21 +187,39 @@ export default function Home() {
         fullText += decoder.decode(value, { stream: true });
       }
 
-      // Remove SSE keep-alive comments (lines starting with ":")
+      // Remove SSE keep-alive comments and find the JSON object
       const cleaned = fullText.replace(/^:.*$/gm, "").trim();
 
       if (!cleaned) {
         throw new Error("빈 응답을 받았습니다. 다시 시도해 주세요.");
       }
 
-      const data = JSON.parse(cleaned);
+      // Find the JSON object - it starts with { and ends with }
+      const jsonStart = cleaned.indexOf("{");
+      const jsonEnd = cleaned.lastIndexOf("}");
+      if (jsonStart === -1 || jsonEnd === -1) {
+        throw new Error("응답에서 JSON을 찾을 수 없습니다.");
+      }
+      const jsonStr = cleaned.substring(jsonStart, jsonEnd + 1);
+      const data = JSON.parse(jsonStr);
       if (data.error) {
         throw new Error(data.error);
       }
       if (!data.title || !data.sections) {
         throw new Error("아티클 데이터가 올바르지 않습니다.");
       }
-      dispatch({ type: "SET_ARTICLE", payload: data as Article });
+      // Ensure visuals, faq, seo always exist
+      const article: Article = {
+        title: data.title,
+        intro: data.intro,
+        sections: data.sections,
+        outro: data.outro,
+        faq: data.faq ?? [],
+        seo: data.seo ?? { metaTitle: "", metaDesc: "", primaryKeyword: "", secondaryKeywords: [], geoTips: [] },
+        visuals: data.visuals ?? [],
+      };
+      console.log("Article visuals:", article.visuals.length);
+      dispatch({ type: "SET_ARTICLE", payload: article });
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "아티클 생성에 실패했습니다.";
@@ -408,7 +441,6 @@ export default function Home() {
             article={state.article}
             activeTab={state.activeTab}
             isGenerating={state.isGenerating}
-            streamingText={state.streamingText}
             regeneratingId={state.regeneratingId}
             onTabChange={(tab) =>
               dispatch({ type: "SET_ACTIVE_TAB", payload: tab })

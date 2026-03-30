@@ -4,13 +4,13 @@ import type { Article } from "@/types";
 import ArticleTab from "./ArticleTab";
 import SeoTab from "./SeoTab";
 import VisualTab from "./VisualTab";
+import { marked } from "marked";
 import { exportMarkdown, exportHTML, copyToClipboard } from "@/lib/export";
 
 interface ResultStepProps {
   article: Article | null;
   activeTab: "article" | "seo" | "visual";
   isGenerating: boolean;
-  streamingText: string;
   regeneratingId: string | null;
   onTabChange: (tab: "article" | "seo" | "visual") => void;
   onRegenerate: (type: string, sectionId?: string) => void;
@@ -25,7 +25,7 @@ interface ResultStepProps {
 
 const TABS: { id: "article" | "seo" | "visual"; label: string }[] = [
   { id: "article", label: "📝 본문" },
-  { id: "seo", label: "🔍 SEO·AEO·GEO" },
+  { id: "seo", label: "🔍 SEO·GEO" },
   { id: "visual", label: "🎨 시각화" },
 ];
 
@@ -33,7 +33,6 @@ export default function ResultStep({
   article,
   activeTab,
   isGenerating,
-  streamingText,
   regeneratingId,
   onTabChange,
   onRegenerate,
@@ -164,7 +163,6 @@ export default function ResultStep({
 
 /** Generate a standalone HTML file styled like FastCampus blog */
 function exportFullHTML(article: Article): string {
-  const { marked } = require("marked");
 
   const renderSection = (sec: typeof article.sections[0], idx: number) => {
     const bodyHtml = marked.parse(sec.body || "");

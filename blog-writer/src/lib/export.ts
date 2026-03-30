@@ -96,11 +96,6 @@ export function exportSEO(seo: SEO): string {
   lines.push(`주요 키워드: ${seo.primaryKeyword}`);
   lines.push(`보조 키워드: ${seo.secondaryKeywords.join(", ")}`);
   lines.push("");
-  lines.push("AEO 최적화 팁:");
-  for (const tip of seo.aeoTips) {
-    lines.push(`  - ${tip}`);
-  }
-  lines.push("");
   lines.push("GEO 최적화 팁:");
   for (const tip of seo.geoTips) {
     lines.push(`  - ${tip}`);

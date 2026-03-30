@@ -23,7 +23,6 @@ export interface SEO {
   metaDesc: string;
   primaryKeyword: string;
   secondaryKeywords: string[];
-  aeoTips: string[];
   geoTips: string[];
 }
 
