@@ -25,10 +25,10 @@ function ToastDisplay({ message, visible }: ToastProps) {
 
 export function useToast() {
   const [visible, setVisible] = useState(false);
-  const [message, setMessage] = useState("복사되었습니다 ✓");
+  const [message, setMessage] = useState("복사되었습니다");
 
   const showToast = useCallback((msg?: string) => {
-    setMessage(msg ?? "복사되었습니다 ✓");
+    setMessage(msg ?? "복사되었습니다");
     setVisible(true);
     setTimeout(() => setVisible(false), 2000);
   }, []);

@@ -144,7 +144,7 @@ export default function Home() {
     fetchTopics();
   }, [fetchTopics]);
 
-  // Generate article with streaming
+  // Generate article via multi-step API calls
   const generateArticle = useCallback(async () => {
     if (!state.selectedTopic && !state.directKeyword.trim()) return;
 
@@ -153,72 +153,68 @@ export default function Home() {
     dispatch({ type: "SET_STEP", payload: 3 });
     dispatch({ type: "SET_ERROR", payload: null });
 
-    try {
+    const apiPost = async (body: Record<string, unknown>) => {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          topic: state.selectedTopic,
-          directKeyword: state.directKeyword,
-          tone: state.tone,
-          charLength: state.charLength,
-          reader: state.reader,
-          sectionCount: state.sectionCount,
-        }),
+        body: JSON.stringify(body),
       });
-
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(
-          (data as { error?: string })?.error || `생성 오류 (${res.status})`
-        );
+        throw new Error((data as { error?: string })?.error || `생성 오류 (${res.status})`);
+      }
+      return res.json();
+    };
+
+    try {
+      const keyword = state.selectedTopic?.title || state.directKeyword;
+      const charPerSection = Math.round(state.charLength / state.sectionCount);
+
+      // Step 1: Outline + Meta (parallel, single API call)
+      dispatch({ type: "APPEND_STREAMING", payload: "아웃라인 생성 중..." });
+      const { outline, meta } = await apiPost({
+        step: "outline",
+        topic: state.selectedTopic,
+        directKeyword: state.directKeyword,
+        tone: state.tone,
+        charLength: state.charLength,
+        reader: state.reader,
+        sectionCount: state.sectionCount,
+      });
+
+      // Step 2: Generate each section (separate API call per section)
+      const sections = [];
+      for (let i = 0; i < outline.headings.length; i++) {
+        const h = outline.headings[i];
+        dispatch({ type: "CLEAR_STREAMING" });
+        dispatch({ type: "APPEND_STREAMING", payload: `섹션 ${i + 1}/${outline.headings.length} 생성 중...` });
+
+        const { section } = await apiPost({
+          step: "section",
+          keyword,
+          tone: state.tone,
+          reader: state.reader,
+          heading: h.heading,
+          keyMessage: h.keyMessage,
+          charPerSection,
+          prevHeading: i > 0 ? outline.headings[i - 1].heading : undefined,
+          nextHeading: i < outline.headings.length - 1 ? outline.headings[i + 1].heading : undefined,
+        });
+
+        sections.push({ id: h.id, heading: h.heading, ...section });
       }
 
-      // Read streamed response (includes keep-alive pings ":\n\n")
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("응답을 읽을 수 없습니다.");
-
-      const decoder = new TextDecoder();
-      let fullText = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        fullText += decoder.decode(value, { stream: true });
-      }
-
-      // Remove SSE keep-alive comments and find the JSON object
-      const cleaned = fullText.replace(/^:.*$/gm, "").trim();
-
-      if (!cleaned) {
-        throw new Error("빈 응답을 받았습니다. 다시 시도해 주세요.");
-      }
-
-      // Find the JSON object - it starts with { and ends with }
-      const jsonStart = cleaned.indexOf("{");
-      const jsonEnd = cleaned.lastIndexOf("}");
-      if (jsonStart === -1 || jsonEnd === -1) {
-        throw new Error("응답에서 JSON을 찾을 수 없습니다.");
-      }
-      const jsonStr = cleaned.substring(jsonStart, jsonEnd + 1);
-      const data = JSON.parse(jsonStr);
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      if (!data.title || !data.sections) {
-        throw new Error("아티클 데이터가 올바르지 않습니다.");
-      }
-      // Ensure visuals, faq, seo always exist
+      // Step 3: Assemble final article
       const article: Article = {
-        title: data.title,
-        intro: data.intro,
-        sections: data.sections,
-        outro: data.outro,
-        faq: data.faq ?? [],
-        seo: data.seo ?? { metaTitle: "", metaDesc: "", primaryKeyword: "", secondaryKeywords: [], geoTips: [] },
-        visuals: data.visuals ?? [],
+        title: outline.title,
+        intro: outline.intro,
+        sections,
+        outro: outline.outro,
+        faq: meta.faq ?? [],
+        seo: meta.seo ?? { metaTitle: "", metaDesc: "", primaryKeyword: "", secondaryKeywords: [], geoTips: [] },
+        visuals: meta.visuals ?? [],
       };
-      console.log("Article visuals:", article.visuals.length);
+
       dispatch({ type: "SET_ARTICLE", payload: article });
     } catch (err) {
       const msg =
@@ -378,7 +374,7 @@ export default function Home() {
         {/* Error banner */}
         {state.error && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-xl px-5 py-4 flex items-start gap-3">
-            <span className="text-red-500 text-lg shrink-0">⚠️</span>
+            <span className="text-red-500 text-lg shrink-0">!</span>
             <div>
               <p className="text-sm font-semibold text-red-800">오류 발생</p>
               <p className="text-sm text-red-600 mt-0.5">{state.error}</p>

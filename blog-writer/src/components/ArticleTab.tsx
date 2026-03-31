@@ -28,7 +28,7 @@ function RegenerateButton({
       disabled={disabled}
       className="text-xs text-gray-400 hover:text-[#1B72FF] border border-gray-200 hover:border-[#B3D4FF] px-2.5 py-1 rounded-lg transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      🔄 다시쓰기
+      다시쓰기
     </button>
   );
 }
@@ -76,9 +76,11 @@ function FeedbackInline({
 
 function renderMarkdown(md: string): string {
   try {
-    const result = marked(md, { breaks: true });
+    // Replace literal \n sequences with actual newlines
+    const cleaned = md.replace(/\\n/g, "\n");
+    const result = marked(cleaned, { breaks: true });
     if (typeof result === "string") return result;
-    return md;
+    return cleaned;
   } catch {
     return md;
   }
@@ -175,7 +177,7 @@ export default function ArticleTab({
                   disabled={isAnyRegenerating}
                   className="text-xs text-gray-400 hover:text-[#1B72FF] border border-gray-200 hover:border-[#B3D4FF] px-2.5 py-1 rounded-lg transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  💬 수정요청
+                  수정요청
                 </button>
               </div>
             </div>

@@ -46,32 +46,45 @@ const READER_CONTEXTS: Record<string, string> = {
   eduOperator: "타겟 독자: 교육 운영자 (LMS 운영, 수강 독려, 효율화·자동화에 관심)",
 };
 
-// Tool schemas — forces Claude to return valid JSON via tool_use
-const ARTICLE_TOOL: Anthropic.Tool = {
-  name: "save_article",
-  description: "생성된 블로그 아티클을 저장합니다",
+// --- Tool schemas ---
+
+const OUTLINE_TOOL: Anthropic.Tool = {
+  name: "save_outline",
+  description: "블로그 아티클 아웃라인을 저장합니다",
   input_schema: {
     type: "object",
     properties: {
       title: { type: "string", description: "블로그 제목 30자 내외" },
       intro: { type: "string", description: "도입부 3~4문장" },
-      sections: {
+      headings: {
         type: "array",
         items: {
           type: "object",
           properties: {
             id: { type: "string" },
             heading: { type: "string", description: "질문형 소제목" },
-            directAnswer: { type: "string", description: "질문에 대한 직접 답변 1~2문장" },
-            body: { type: "string", description: "본문. 마크다운 사용 가능(볼드, 리스트, 인용). 줄바꿈은 \\n" },
-            keyPoint: { type: "string", description: "이 섹션에서 독자가 반드시 기억해야 할 핵심 인사이트 1문장. 구체적이고 실행 가능한 메시지로, 이 문장만 봐도 본문을 읽고 싶게 만드세요. 예: '교육 ROI를 3배 높이는 핵심은 사전 진단 → 맞춤 설계 → 현업 적용의 3단계 순환 구조에 있다'" },
+            keyMessage: { type: "string", description: "이 섹션에서 다룰 핵심 메시지 1문장" },
           },
-          required: ["id", "heading", "directAnswer", "body", "keyPoint"],
+          required: ["id", "heading", "keyMessage"],
         },
       },
       outro: { type: "string", description: "마무리 2~3문장" },
     },
-    required: ["title", "intro", "sections", "outro"],
+    required: ["title", "intro", "headings", "outro"],
+  },
+};
+
+const SECTION_TOOL: Anthropic.Tool = {
+  name: "save_section",
+  description: "블로그 섹션 본문을 저장합니다",
+  input_schema: {
+    type: "object",
+    properties: {
+      directAnswer: { type: "string", description: "질문에 대한 직접 답변 1~2문장" },
+      body: { type: "string", description: "본문. 마크다운 사용 가능(볼드, 리스트, 인용). 줄바꿈은 \\n" },
+      keyPoint: { type: "string", description: "이 섹션에서 독자가 반드시 기억해야 할 핵심 인사이트 1문장. 구체적이고 실행 가능한 메시지로, 이 문장만 봐도 본문을 읽고 싶게 만드세요." },
+    },
+    required: ["directAnswer", "body", "keyPoint"],
   },
 };
 
@@ -123,101 +136,201 @@ const META_TOOL: Anthropic.Tool = {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topic, directKeyword, tone, charLength, reader, sectionCount } = body;
-    const keyword = topic?.title || directKeyword;
+    const { step } = body;
 
-    if (!keyword || !tone || !charLength || !reader || !sectionCount) {
-      return NextResponse.json({ error: "필수 파라미터가 누락되었습니다." }, { status: 400 });
+    if (step === "outline") {
+      return handleOutline(body);
+    } else if (step === "section") {
+      return handleSection(body);
+    } else if (step === "meta") {
+      return handleMeta(body);
     }
 
-    const toneAddition = TONE_ADDITIONS[tone] ?? TONE_ADDITIONS["professional"];
-    const readerContext = READER_CONTEXTS[reader] ?? READER_CONTEXTS["hrd"];
-    const systemPrompt = BASE_SYSTEM_PROMPT + toneAddition;
-
-    const encoder = new TextEncoder();
-
-    const readableStream = new ReadableStream({
-      async start(controller) {
-        const pingInterval = setInterval(() => {
-          try { controller.enqueue(encoder.encode(":\n\n")); } catch { /* closed */ }
-        }, 5000);
-
-        try {
-          // Parallel: article (Sonnet + tool_use) & meta (Haiku + tool_use)
-          const articlePromise = client.messages.create({
-            model: "claude-sonnet-4-6",
-            max_tokens: 8000,
-            temperature: 0.7,
-            system: systemPrompt,
-            tools: [ARTICLE_TOOL],
-            tool_choice: { type: "tool", name: "save_article" },
-            messages: [{
-              role: "user",
-              content: `키워드/주제: ${keyword}\n${readerContext}\n목표 분량: 약 ${charLength}자\n섹션 수: ${sectionCount}개\n\n위 조건에 맞는 HRD 블로그 아티클을 작성하고 save_article 도구로 저장해주세요.`,
-            }],
-          });
-
-          const metaPromise = client.messages.create({
-            model: "claude-haiku-4-5-20251001",
-            max_tokens: 2000,
-            temperature: 0.7,
-            system: "당신은 B2B 교육업 SEO/GEO 전문가입니다.",
-            tools: [META_TOOL],
-            tool_choice: { type: "tool", name: "save_meta" },
-            messages: [{
-              role: "user",
-              content: `키워드: ${keyword}\n${readerContext}\n섹션 수: ${sectionCount}개 (sec_1~sec_${sectionCount})\n\nFAQ 3개, SEO 메타데이터, 섹션별 시각화 프롬프트를 생성하고 save_meta 도구로 저장해주세요.`,
-            }],
-          });
-
-          const [articleRes, metaRes] = await Promise.all([articlePromise, metaPromise]);
-          clearInterval(pingInterval);
-
-          // Extract tool_use input from responses
-          const articleBlock = articleRes.content.find((b) => b.type === "tool_use");
-          const metaBlock = metaRes.content.find((b) => b.type === "tool_use");
-
-          if (!articleBlock || articleBlock.type !== "tool_use") {
-            throw new Error("아티클 생성 결과를 받지 못했습니다.");
-          }
-
-          const articleData = articleBlock.input as Record<string, unknown>;
-          const metaData = (metaBlock && metaBlock.type === "tool_use")
-            ? metaBlock.input as Record<string, unknown>
-            : { faq: [], seo: {}, visuals: [] };
-
-          console.log("Meta data keys:", Object.keys(metaData));
-          console.log("Visuals count:", Array.isArray(metaData.visuals) ? (metaData.visuals as unknown[]).length : "not array");
-
-          // Ensure visuals, faq, seo always exist
-          const merged = {
-            ...articleData,
-            faq: metaData.faq ?? [],
-            seo: metaData.seo ?? {},
-            visuals: metaData.visuals ?? [],
-          };
-
-          controller.enqueue(encoder.encode(JSON.stringify(merged)));
-          controller.close();
-        } catch (err) {
-          clearInterval(pingInterval);
-          const msg = err instanceof Error ? err.message : "생성 오류";
-          console.error("Generate error:", msg);
-          controller.enqueue(encoder.encode(JSON.stringify({ error: msg })));
-          controller.close();
-        }
-      },
-    });
-
-    return new Response(readableStream, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    });
+    return NextResponse.json({ error: "잘못된 step 파라미터입니다." }, { status: 400 });
   } catch (error) {
     console.error("Generate API error:", error);
-    return Response.json({ error: "아티클 생성 중 오류가 발생했습니다." }, { status: 500 });
+    const msg = error instanceof Error ? error.message : "생성 오류";
+    return Response.json({ error: msg }, { status: 500 });
   }
+}
+
+async function handleOutline(body: Record<string, unknown>) {
+  const { topic, directKeyword, tone, charLength, reader, sectionCount } = body as {
+    topic?: { title: string }; directKeyword?: string; tone: string; charLength: number; reader: string; sectionCount: number;
+  };
+  const keyword = topic?.title || directKeyword;
+
+  if (!keyword || !tone || !charLength || !reader || !sectionCount) {
+    return NextResponse.json({ error: "필수 파라미터가 누락되었습니다." }, { status: 400 });
+  }
+
+  const toneAddition = TONE_ADDITIONS[tone] ?? TONE_ADDITIONS["professional"];
+  const readerContext = READER_CONTEXTS[reader] ?? READER_CONTEXTS["hrd"];
+  const systemPrompt = BASE_SYSTEM_PROMPT + toneAddition;
+
+  const [outlineRes, metaRes] = await Promise.all([
+    client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 2000,
+      temperature: 0.7,
+      system: systemPrompt,
+      tools: [OUTLINE_TOOL],
+      tool_choice: { type: "tool", name: "save_outline" },
+      messages: [{
+        role: "user",
+        content: `키워드/주제: ${keyword}\n${readerContext}\n목표 분량: 약 ${charLength}자\n섹션 수: ${sectionCount}개\n\n위 조건에 맞는 HRD 블로그 아티클의 아웃라인(제목, 도입부, 각 섹션 소제목과 핵심 메시지, 마무리)을 작성하고 save_outline 도구로 저장해주세요.`,
+      }],
+    }),
+    client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 2000,
+      temperature: 0.7,
+      system: "당신은 B2B 교육업 SEO/GEO 전문가입니다.",
+      tools: [META_TOOL],
+      tool_choice: { type: "tool", name: "save_meta" },
+      messages: [{
+        role: "user",
+        content: `키워드: ${keyword}\n${readerContext}\n섹션 수: ${sectionCount}개 (sec_1~sec_${sectionCount})\n\nFAQ 3개와 SEO 메타데이터를 생성하고 save_meta 도구로 저장해주세요. visuals는 빈 배열로 두세요.`,
+      }],
+    }),
+  ]);
+
+  const outlineBlock = outlineRes.content.find((b) => b.type === "tool_use");
+  if (!outlineBlock || outlineBlock.type !== "tool_use") {
+    return NextResponse.json({ error: "아웃라인 생성 실패" }, { status: 500 });
+  }
+  const outline = outlineBlock.input as { headings?: { id: string; heading: string; keyMessage: string }[] };
+
+  const metaBlock = metaRes.content.find((b) => b.type === "tool_use");
+  const meta = (metaBlock && metaBlock.type === "tool_use")
+    ? metaBlock.input as Record<string, unknown>
+    : { faq: [], seo: {} };
+
+  // Generate visuals with actual outline headings
+  const headings = outline.headings ?? [];
+  const visualsRes = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 1500,
+    temperature: 0.7,
+    system: "당신은 B2B 교육업 블로그 비주얼 전문가입니다.",
+    tools: [{
+      name: "save_visuals",
+      description: "섹션별 시각화 프롬프트를 저장합니다",
+      input_schema: {
+        type: "object",
+        properties: {
+          visuals: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                section: { type: "string", description: "섹션 ID (예: sec_1)" },
+                description: { type: "string", description: "이 섹션에 적합한 이미지 설명 (한국어)" },
+                prompt: { type: "string", description: "Unsplash 검색용 영문 키워드 (3~5개 단어)" },
+              },
+              required: ["section", "description", "prompt"],
+            },
+          },
+        },
+        required: ["visuals"],
+      },
+    }],
+    tool_choice: { type: "tool", name: "save_visuals" },
+    messages: [{
+      role: "user",
+      content: `키워드: ${keyword}\n\n아래 각 섹션에 어울리는 Unsplash 이미지를 추천해주세요.\n${headings.map((h, i) => `- sec_${i + 1}: ${h.heading}`).join("\n")}\n\n각 섹션마다 description(한국어 설명)과 prompt(Unsplash 검색용 영문 3~5단어)를 생성해주세요.`,
+    }],
+  });
+
+  const visualsBlock = visualsRes.content.find((b) => b.type === "tool_use");
+  const visuals = (visualsBlock && visualsBlock.type === "tool_use")
+    ? ((visualsBlock.input as { visuals?: unknown[] }).visuals ?? [])
+    : [];
+
+  return NextResponse.json({
+    outline: outlineBlock.input,
+    meta: {
+      faq: meta.faq ?? [],
+      seo: meta.seo ?? {},
+      visuals,
+    },
+  });
+}
+
+async function handleSection(body: Record<string, unknown>) {
+  const { keyword, tone, reader, heading, keyMessage, charPerSection, prevHeading, nextHeading } = body as {
+    keyword: string; tone: string; reader: string; heading: string; keyMessage: string;
+    charPerSection: number; prevHeading?: string; nextHeading?: string;
+  };
+
+  if (!keyword || !heading) {
+    return NextResponse.json({ error: "필수 파라미터가 누락되었습니다." }, { status: 400 });
+  }
+
+  const toneAddition = TONE_ADDITIONS[tone] ?? TONE_ADDITIONS["professional"];
+  const readerContext = READER_CONTEXTS[reader] ?? READER_CONTEXTS["hrd"];
+  const systemPrompt = BASE_SYSTEM_PROMPT + toneAddition;
+
+  const contextLines = [
+    `키워드/주제: ${keyword}`,
+    readerContext,
+    `\n소제목: ${heading}`,
+    `핵심 메시지: ${keyMessage}`,
+    `목표 분량: 약 ${charPerSection}자`,
+  ];
+  if (prevHeading) contextLines.push(`이전 섹션: ${prevHeading}`);
+  if (nextHeading) contextLines.push(`다음 섹션: ${nextHeading}`);
+  contextLines.push(`\n위 소제목에 대한 블로그 섹션 본문을 작성하고 save_section 도구로 저장해주세요.`);
+
+  const res = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 4000,
+    temperature: 0.7,
+    system: systemPrompt,
+    tools: [SECTION_TOOL],
+    tool_choice: { type: "tool", name: "save_section" },
+    messages: [{ role: "user", content: contextLines.join("\n") }],
+  });
+
+  const block = res.content.find((b) => b.type === "tool_use");
+  if (!block || block.type !== "tool_use") {
+    return NextResponse.json({ error: "섹션 생성 실패" }, { status: 500 });
+  }
+
+  return NextResponse.json({ section: block.input });
+}
+
+async function handleMeta(body: Record<string, unknown>) {
+  const { keyword, reader, sectionCount } = body as {
+    keyword: string; reader: string; sectionCount: number;
+  };
+
+  const readerContext = READER_CONTEXTS[reader] ?? READER_CONTEXTS["hrd"];
+
+  const res = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 2000,
+    temperature: 0.7,
+    system: "당신은 B2B 교육업 SEO/GEO 전문가입니다.",
+    tools: [META_TOOL],
+    tool_choice: { type: "tool", name: "save_meta" },
+    messages: [{
+      role: "user",
+      content: `키워드: ${keyword}\n${readerContext}\n섹션 수: ${sectionCount}개 (sec_1~sec_${sectionCount})\n\nFAQ 3개, SEO 메타데이터, 섹션별 시각화 프롬프트를 생성하고 save_meta 도구로 저장해주세요.`,
+    }],
+  });
+
+  const block = res.content.find((b) => b.type === "tool_use");
+  if (!block || block.type !== "tool_use") {
+    return NextResponse.json({ meta: { faq: [], seo: {}, visuals: [] } });
+  }
+
+  const meta = block.input as Record<string, unknown>;
+  return NextResponse.json({
+    meta: {
+      faq: meta.faq ?? [],
+      seo: meta.seo ?? {},
+      visuals: meta.visuals ?? [],
+    },
+  });
 }

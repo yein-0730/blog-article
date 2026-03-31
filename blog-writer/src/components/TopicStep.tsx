@@ -15,17 +15,17 @@ interface TopicStepProps {
 
 const MONTH = new Date().getMonth() + 1;
 const SEASONAL_MAP: Record<number, string> = {
-  1: "연간 LMS 운영 계획 · AI 교육 로드맵 · 역량진단 도입",
-  2: "온보딩 LMS 설계 · 생성형 AI 활용 콘텐츠",
-  3: "온라인 교육과정 개편 · LMS 큐레이션 · AI 튜터",
-  4: "법정의무교육 온라인 전환 · 직무역량 진단 시스템",
-  5: "LMS 데이터 분석 · AI 스킬갭 진단 · 학습 대시보드",
+  1: "연간 LMS 운영 계획 · 생성형 AI 교육 로드맵",
+  2: "온보딩 LMS 설계 · 생성형 AI 활용 콘텐츠 제작",
+  3: "온라인 교육과정 개편 · LMS 큐레이션 · 생성형 AI 교육 설계",
+  4: "법정의무교육 온라인 전환 · 생성형 AI 콘텐츠 자동화",
+  5: "LMS 데이터 분석 · 학습 대시보드 · 생성형 AI 교육 효과 측정",
   6: "이러닝 기획 · 생성형 AI 콘텐츠 제작 · LMS 고도화",
-  7: "마이크로러닝 설계 · AI 학습 추천 시스템",
-  8: "AI 역량진단 고도화 · 적응형 학습 · LMS UX 개선",
-  9: "생성형 AI 교육 트렌드 · AX 교육 · 블렌디드 러닝",
-  10: "LMS 예산 수립 · 에듀테크 트렌드 · AI 진단 ROI",
-  11: "온라인 교육 성과 평가 · LMS ROI · AI 교육 효과 분석",
+  7: "마이크로러닝 설계 · 생성형 AI 활용 교육과정 개발",
+  8: "생성형 AI 교육 설계 고도화 · LMS UX 개선",
+  9: "생성형 AI 교육 트렌드 · AX 교육 설계 · 블렌디드 러닝",
+  10: "LMS 예산 수립 · 에듀테크 트렌드 · 생성형 AI 교육 ROI",
+  11: "온라인 교육 성과 평가 · LMS ROI · 생성형 AI 교육 효과 분석",
   12: "LMS 운영 회고 · 에듀테크 전략 · 생성형 AI 교육 계획",
 };
 
@@ -61,7 +61,7 @@ export default function TopicStep({
       {/* Seasonal banner */}
       <div className="bg-[#E8F1FF] border border-[#B3D4FF] rounded-xl px-5 py-3 mb-6 flex items-center gap-2">
         <span className="text-[#1B72FF] text-sm font-semibold">
-          📅 {MONTH}월 추천 주제
+          {MONTH}월 추천 주제
         </span>
         <span className="text-gray-400 text-sm">·</span>
         <span className="text-gray-600 text-sm">{SEASONAL_MAP[MONTH]}</span>

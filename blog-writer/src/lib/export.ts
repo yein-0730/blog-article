@@ -13,7 +13,7 @@ export function exportMarkdown(article: Article): string {
     lines.push("");
     lines.push(`> ${section.directAnswer}`);
     lines.push("");
-    lines.push(section.body);
+    lines.push(section.body.replace(/\\n/g, "\n"));
     lines.push("");
     lines.push(`*${section.keyPoint}*`);
     lines.push("");
@@ -57,7 +57,7 @@ export function exportHTML(article: Article): string {
     lines.push(
       `<p><strong>${escapeHtml(section.directAnswer)}</strong></p>`
     );
-    lines.push(`<div>${section.body}</div>`);
+    lines.push(`<div>${section.body.replace(/\\n/g, "\n")}</div>`);
     lines.push(`<p><em>${escapeHtml(section.keyPoint)}</em></p>`);
     lines.push(`</section>`);
   }

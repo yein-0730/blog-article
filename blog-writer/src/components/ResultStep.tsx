@@ -24,9 +24,9 @@ interface ResultStepProps {
 }
 
 const TABS: { id: "article" | "seo" | "visual"; label: string }[] = [
-  { id: "article", label: "📝 본문" },
-  { id: "seo", label: "🔍 SEO·GEO" },
-  { id: "visual", label: "🎨 시각화" },
+  { id: "article", label: "본문" },
+  { id: "seo", label: "SEO·GEO" },
+  { id: "visual", label: "시각화" },
 ];
 
 export default function ResultStep({
@@ -141,19 +141,19 @@ export default function ResultStep({
             onClick={handleCopyMarkdown}
             className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-[#1B72FF] border border-gray-200 hover:border-[#B3D4FF] px-4 py-2.5 rounded-xl transition-all duration-150 bg-white hover:bg-[#E8F1FF]"
           >
-            📋 마크다운 복사
+            마크다운 복사
           </button>
           <button
             onClick={handleCopyHTML}
             className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-[#1B72FF] border border-gray-200 hover:border-[#B3D4FF] px-4 py-2.5 rounded-xl transition-all duration-150 bg-white hover:bg-[#E8F1FF]"
           >
-            📋 HTML 복사
+            HTML 복사
           </button>
           <button
             onClick={handleDownloadHTML}
             className="flex items-center gap-1.5 text-sm font-medium text-white bg-[#1B72FF] hover:bg-[#1456CC] px-4 py-2.5 rounded-xl transition-all duration-150 shadow-sm"
           >
-            ⬇ HTML 다운로드
+            HTML 다운로드
           </button>
         </div>
       </div>
@@ -165,7 +165,7 @@ export default function ResultStep({
 function exportFullHTML(article: Article): string {
 
   const renderSection = (sec: typeof article.sections[0], idx: number) => {
-    const bodyHtml = marked.parse(sec.body || "");
+    const bodyHtml = marked.parse((sec.body || "").replace(/\\n/g, "\n"));
     return `
     <section class="section">
       <h2 class="section-heading">${idx + 1}. ${sec.heading}</h2>

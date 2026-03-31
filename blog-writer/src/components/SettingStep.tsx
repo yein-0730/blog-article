@@ -18,24 +18,24 @@ interface SettingStepProps {
   isGenerating?: boolean;
 }
 
-const TONES: { value: Tone; emoji: string; title: string; desc: string }[] = [
+const TONES: { value: Tone; title: string; desc: string }[] = [
   {
     value: "professional",
-    emoji: "📊",
+
     title: "전문적·신뢰감",
-    desc: "데이터와 프레임워크 중심의 객관적 서술",
+    desc: "보고서처럼 근거 있고 정돈된 글",
   },
   {
     value: "friendly",
-    emoji: "💬",
+
     title: "친근·실용적",
-    desc: "실무자 눈높이의 가이드형 콘텐츠",
+    desc: "편하게 읽히는 실무 팁 위주의 글",
   },
   {
     value: "challenging",
-    emoji: "💡",
-    title: "도전적·인사이트형",
-    desc: "기존 관점을 뒤집는 도전적 시각",
+
+    title: "인사이트형",
+    desc: "통념을 깨는 질문으로 시작하는 글",
   },
 ];
 
@@ -95,7 +95,6 @@ export default function SettingStep({
                   : "border-gray-200 bg-white hover:border-[#B3D4FF] hover:bg-gray-50"
               }`}
             >
-              <span className="text-2xl block mb-2">{t.emoji}</span>
               <span className="block text-sm font-semibold text-gray-900 mb-1">
                 {t.title}
               </span>
@@ -127,24 +126,6 @@ export default function SettingStep({
             </button>
           ))}
         </div>
-      </div>
-
-      {/* Reader dropdown */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-800 mb-3">
-          대상 독자
-        </label>
-        <select
-          value={reader}
-          onChange={(e) => onChangeReader(e.target.value as Reader)}
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#B3D4FF] focus:border-[#1B72FF] transition-all duration-150 cursor-pointer"
-        >
-          {READERS.map((r) => (
-            <option key={r.value} value={r.value}>
-              {r.label}
-            </option>
-          ))}
-        </select>
       </div>
 
       {/* Section count dropdown */}
@@ -205,7 +186,7 @@ export default function SettingStep({
               생성 중...
             </>
           ) : (
-            "🚀 아티클 생성하기"
+            "아티클 생성하기"
           )}
         </button>
       </div>
