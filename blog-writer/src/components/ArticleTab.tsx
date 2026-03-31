@@ -124,14 +124,33 @@ export default function ArticleTab({
       <div className="text-xs text-gray-400 mb-8">AI 생성 아티클 · HRD 블로그</div>
 
       {/* Intro */}
-      <div className="relative group mb-10">
+      <div className={`relative mb-10 ${regeneratingId === "intro" ? "opacity-60" : ""}`}>
+        {regeneratingId === "intro" && <LoadingSpinner />}
         <div className="flex items-start justify-between gap-4 mb-3">
           <div className="text-xs font-semibold text-gray-400 tracking-wider uppercase">도입부</div>
-          <RegenerateButton onClick={() => onRegenerate("intro")} disabled={isAnyRegenerating} />
+          <div className="flex items-center gap-2 shrink-0">
+            <RegenerateButton onClick={() => onRegenerate("intro")} disabled={isAnyRegenerating} />
+            <button
+              onClick={() => setFeedbackOpenId(feedbackOpenId === "intro" ? null : "intro")}
+              disabled={isAnyRegenerating}
+              className="text-xs text-gray-400 hover:text-[#1B72FF] border border-gray-200 hover:border-[#B3D4FF] px-2.5 py-1 rounded-lg transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              수정요청
+            </button>
+          </div>
         </div>
         <div className="bg-gray-50 rounded-xl p-5">
           <p className="text-[15px] text-gray-700 leading-[1.9]">{article.intro}</p>
         </div>
+        {feedbackOpenId === "intro" && (
+          <FeedbackInline
+            onSubmit={(feedback) => {
+              onRegenerateWithFeedback("intro", "intro", feedback);
+              setFeedbackOpenId(null);
+            }}
+            onCancel={() => setFeedbackOpenId(null)}
+          />
+        )}
       </div>
 
       {/* Key Takeaways — 핵심 내용 3가지 */}

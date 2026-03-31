@@ -176,12 +176,30 @@ function ImageSection({
       const fetched = data.images || [];
 
       // Filter out images already shown in other sections
+      // If no results returned (page too high), reset page and retry with new query
+      if (fetched.length === 0 && page > 1) {
+        pageRef.current = 1;
+        refreshCountRef.current += 1;
+        const retryVariation = refreshCountRef.current * totalSections + index;
+        const retryQuery = buildSearchQuery(visual, section, retryVariation);
+        const retryRes = await fetch(`/api/unsplash?query=${encodeURIComponent(retryQuery)}&page=1`);
+        if (retryRes.ok) {
+          const retryData = await retryRes.json() as { images: UnsplashImage[] };
+          const retryFetched = retryData.images || [];
+          const retryUnique = retryFetched.filter((img) => !globalSeenIds.has(img.id));
+          retryUnique.forEach((img) => globalSeenIds.add(img.id));
+          setImages(retryUnique.length > 0 ? retryUnique : retryFetched);
+          pageRef.current = 2;
+          return;
+        }
+      }
+
       const unique = fetched.filter((img) => !globalSeenIds.has(img.id));
       unique.forEach((img) => globalSeenIds.add(img.id));
 
       setImages(unique.length > 0 ? unique : fetched);
-      // Jump pages significantly for next refresh
-      pageRef.current = page + totalSections + 2;
+      // Jump pages but cap to avoid exceeding Unsplash limits
+      pageRef.current = Math.min(page + totalSections + 2, 50);
       refreshCountRef.current += 1;
     } catch (err) {
       setError(err instanceof Error ? err.message : "이미지 검색 실패");

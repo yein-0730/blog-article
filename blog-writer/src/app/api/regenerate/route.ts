@@ -52,10 +52,16 @@ export async function POST(request: NextRequest) {
     const readerLabel = READER_LABELS[reader] ?? reader;
     const sectionHeadings = typedArticle.sections.map((s) => s.heading).join(", ");
 
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const quarter = Math.ceil(month / 3);
+    const dateContext = `[현재 시점] ${year}년 ${month}월 (${quarter}분기) — 시점 표현 시 반드시 현재 기준으로 작성하세요.\n\n`;
+
     let prompt: string;
 
     if (type === "intro") {
-      prompt = `다음 블로그 아티클의 도입부를 다시 작성해주세요.
+      prompt = dateContext + `다음 블로그 아티클의 도입부를 다시 작성해주세요.
 
 [아티클 정보]
 - 제목: ${typedArticle.title}
@@ -72,7 +78,7 @@ ${feedback ? `\n[수정 요청]\n${feedback}` : ""}
 [출력 형식 - JSON]
 { "intro": "새로 작성된 도입부 (3~4문장)" }`;
     } else if (type === "outro") {
-      prompt = `다음 블로그 아티클의 마무리를 다시 작성해주세요.
+      prompt = dateContext + `다음 블로그 아티클의 마무리를 다시 작성해주세요.
 
 [아티클 정보]
 - 제목: ${typedArticle.title}
@@ -99,7 +105,7 @@ ${feedback ? `\n[수정 요청]\n${feedback}` : ""}
         return Response.json({ error: "해당 섹션을 찾을 수 없습니다." }, { status: 400 });
       }
 
-      prompt = `다음 블로그 섹션을 다시 작성해주세요.
+      prompt = dateContext + `다음 블로그 섹션을 다시 작성해주세요.
 
 [아티클 정보]
 - 제목: ${typedArticle.title}
