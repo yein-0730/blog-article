@@ -125,27 +125,44 @@ const ANGLES = [
   "성과 측정 — 교육 효과를 데이터로 입증하는 방법",
 ];
 
+const SERVICE_KEYWORDS = [
+  { id: "lms", label: "LMS (온라인 교육)" },
+  { id: "skill", label: "스킬 진단 (역량 평가)" },
+  { id: "ax", label: "AX 교육 (AI 트랜스포메이션)" },
+];
+
 const TOPICS_TOOL: Anthropic.Tool = {
   name: "save_topics",
-  description: "블로그 주제 추천 결과를 저장합니다",
+  description: "키워드별 블로그 주제 추천 결과를 저장합니다",
   input_schema: {
     type: "object",
     properties: {
-      topics: {
+      groups: {
         type: "array",
+        description: "3개 키워드 그룹, 각 그룹에 주제 3개",
         items: {
           type: "object",
           properties: {
-            title: { type: "string", description: "블로그 제목 30자 내외" },
-            reason: { type: "string", description: "왜 지금 이 주제인지 1줄 — 이번 달 HRD 담당자의 실무 상황과 연결" },
-            angle: { type: "string", description: "이 주제가 다루는 핵심 내용을 1줄로 요약 (형식 태그 금지: '가이드형', '사례형' 등 쓰지 말 것)" },
-            keywords: { type: "array", items: { type: "string" } },
+            keyword: { type: "string", description: "서비스 키워드명 (예: LMS, 스킬 진단, AX 교육)" },
+            topics: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string", description: "블로그 제목 30자 내외" },
+                  reason: { type: "string", description: "왜 지금 이 주제인지 1줄" },
+                  angle: { type: "string", description: "핵심 내용 1줄 요약" },
+                  keywords: { type: "array", items: { type: "string" } },
+                },
+                required: ["title", "reason", "angle", "keywords"],
+              },
+            },
           },
-          required: ["title", "reason", "angle", "keywords"],
+          required: ["keyword", "topics"],
         },
       },
     },
-    required: ["topics"],
+    required: ["groups"],
   },
 };
 
@@ -156,11 +173,11 @@ async function generateTopics(reader: string, previousTopics: string[]) {
   const hrd = HRD_CALENDAR[month] ?? HRD_CALENDAR[1];
   const angle = ANGLES[Math.floor(Math.random() * ANGLES.length)];
 
-    const exclude = previousTopics.length > 0
-      ? `\n\n[제외할 주제]\n${previousTopics.join(", ")}`
-      : "";
+  const exclude = previousTopics.length > 0
+    ? `\n\n[제외할 주제]\n${previousTopics.join(", ")}`
+    : "";
 
-    const prompt = `B2B 교육업 블로그 주제 5개를 추천하세요.
+  const prompt = `B2B 교육업 블로그 주제를 키워드별로 추천하세요.
 
 [현재 시점]
 ${year}년 ${month}월
@@ -169,22 +186,25 @@ ${year}년 ${month}월
 해야 할 일: ${hrd.tasks}
 고민/페인포인트: ${hrd.painPoints}
 
-[우리 서비스 연결]
-- LMS(온라인 교육): ${hrd.lmsHook}
-- 스킬 진단(역량 평가): ${hrd.skillHook}
-- AX 교육(AI 교육): ${hrd.axHook}
+[3개 서비스 키워드별 연결 포인트]
+1. LMS (온라인 교육): ${hrd.lmsHook}
+2. 스킬 진단 (역량 평가): ${hrd.skillHook}
+3. AX 교육 (AI 트랜스포메이션): ${hrd.axHook}
 
 [콘텐츠 관점]
 앵글: ${angle}
 독자: ${reader}
 
+[출력 형식]
+위 3개 키워드 각각에 대해 블로그 주제 3개씩, 총 9개를 생성하세요.
+
 [규칙]
-1. 5개 중 최소 3개는 이번 달 HRD 담당자의 실무 상황/고민과 직접 연결
-2. LMS, 스킬 진단, AX 교육 중 최소 2개 서비스 영역 커버
-3. 제목은 HRD 담당자가 "지금 내 상황이네" 하고 클릭하고 싶게 — 구체적 상황/숫자/질문 활용
-4. 제목 형식 다양하게: "~하는 방법", "~ 체크리스트", "${year}년 ~", "왜 ~인가" 등. "A vs B"는 최대 1개
-5. reason은 "이번 달 HRD 담당자가 왜 이걸 읽어야 하는지" 실무 맥락으로 설명
-6. 컨퍼런스·행사명은 제목에 넣지 마세요. 담당자의 실무 고민 중심으로.
+1. 각 주제는 이번 달 HRD 담당자의 실무 상황/고민과 연결
+2. 제목은 HRD 담당자가 "지금 내 상황이네" 하고 클릭하고 싶게
+3. 제목 형식 다양하게: "~하는 방법", "~ 체크리스트", "${year}년 ~", "왜 ~인가" 등
+4. reason은 이번 달 HRD 실무 맥락으로 설명
+5. 컨퍼런스·행사명은 제목에 넣지 마세요
+6. 같은 키워드 그룹 안에서 주제가 겹치지 않게
 
 [카테고리]
 이러닝/마이크로러닝, LMS 운영·도입, 스킬 진단·역량 평가, AX(AI 트랜스포메이션) 교육, 법정의무교육 운영
@@ -194,40 +214,29 @@ AI 튜터, AI 코칭, 적응형 학습, AI 진단, 리더십, 소프트스킬
 
 중요: 연도를 언급할 때 반드시 ${year}년을 사용하세요.${exclude}`;
 
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 2500,
-      temperature: 0.8,
-      tools: [TOPICS_TOOL],
-      tool_choice: { type: "tool", name: "save_topics" },
-      messages: [{ role: "user", content: prompt }],
-    });
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 4000,
+    temperature: 0.8,
+    tools: [TOPICS_TOOL],
+    tool_choice: { type: "tool", name: "save_topics" },
+    messages: [{ role: "user", content: prompt }],
+  });
 
-    const block = response.content.find((b) => b.type === "tool_use");
-    if (!block || block.type !== "tool_use") {
-      throw new Error("주제 생성 실패");
-    }
+  const block = response.content.find((b) => b.type === "tool_use");
+  if (!block || block.type !== "tool_use") {
+    throw new Error("주제 생성 실패");
+  }
 
-    const result = block.input as { topics?: unknown[] };
-    if (result.topics && result.topics.length > 0) {
-      return result;
-    }
+  const result = block.input as { groups?: unknown[] };
+  if (result.groups && result.groups.length > 0) {
+    return result;
+  }
 
-    // Fallback: if tool_use returned empty, try plain text
-    const textBlock = response.content.find((b) => b.type === "text");
-    if (textBlock && textBlock.type === "text") {
-      let jsonText = textBlock.text.trim();
-      if (jsonText.startsWith("```")) {
-        jsonText = jsonText.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
-      }
-      const parsed = JSON.parse(jsonText);
-      if (parsed.topics?.length > 0) return parsed;
-    }
-
-    throw new Error("주제 생성 결과가 비어있습니다");
+  throw new Error("주제 생성 결과가 비어있습니다");
 }
 
-// GET: cached response for initial page load (revalidate every 2 hours)
+// GET: cached response for initial page load (revalidate every 24 hours)
 export const revalidate = 86400;
 
 export async function GET() {
@@ -264,4 +273,4 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export { HRD_CALENDAR };
+export { HRD_CALENDAR, SERVICE_KEYWORDS };

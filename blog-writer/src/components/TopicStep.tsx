@@ -1,9 +1,12 @@
 "use client";
 
-import type { Topic } from "@/types";
+import { useState } from "react";
+import type { Topic, TopicGroup } from "@/types";
+import CalendarModal from "./CalendarModal";
 
 interface TopicStepProps {
   topics: Topic[] | null;
+  groups: TopicGroup[] | null;
   isLoading: boolean;
   onSelectTopic: (topic: Topic) => void;
   onDirectInput: (value: string) => void;
@@ -29,6 +32,32 @@ const HRD_BANNERS: Record<number, string> = {
   12: "LMS 갱신 결정 · 인사평가↔교육 연동 · 내년 AI 교육 확정",
 };
 
+const KEYWORD_ICONS: Record<string, string> = {
+  "LMS": "📺",
+  "스킬 진단": "📊",
+  "AX 교육": "🤖",
+};
+
+const KEYWORD_COLORS: Record<string, { bg: string; border: string; badge: string; text: string }> = {
+  "LMS": { bg: "bg-blue-50/50", border: "border-blue-200", badge: "bg-blue-100 text-blue-700", text: "text-blue-700" },
+  "스킬 진단": { bg: "bg-emerald-50/50", border: "border-emerald-200", badge: "bg-emerald-100 text-emerald-700", text: "text-emerald-700" },
+  "AX 교육": { bg: "bg-violet-50/50", border: "border-violet-200", badge: "bg-violet-100 text-violet-700", text: "text-violet-700" },
+};
+
+function getColorForKeyword(keyword: string) {
+  if (keyword.includes("LMS")) return KEYWORD_COLORS["LMS"];
+  if (keyword.includes("스킬") || keyword.includes("역량")) return KEYWORD_COLORS["스킬 진단"];
+  if (keyword.includes("AX") || keyword.includes("AI")) return KEYWORD_COLORS["AX 교육"];
+  return KEYWORD_COLORS["LMS"];
+}
+
+function getIconForKeyword(keyword: string) {
+  if (keyword.includes("LMS")) return KEYWORD_ICONS["LMS"];
+  if (keyword.includes("스킬") || keyword.includes("역량")) return KEYWORD_ICONS["스킬 진단"];
+  if (keyword.includes("AX") || keyword.includes("AI")) return KEYWORD_ICONS["AX 교육"];
+  return "📋";
+}
+
 function TopicCardSkeleton() {
   return (
     <div className="border border-gray-100 rounded-xl p-5 bg-white animate-pulse">
@@ -38,7 +67,19 @@ function TopicCardSkeleton() {
       <div className="flex gap-2">
         <div className="h-6 w-16 bg-[#E8F1FF] rounded-full" />
         <div className="h-6 w-20 bg-[#E8F1FF] rounded-full" />
-        <div className="h-6 w-14 bg-[#E8F1FF] rounded-full" />
+      </div>
+    </div>
+  );
+}
+
+function GroupSkeleton() {
+  return (
+    <div className="mb-6">
+      <div className="h-6 bg-gray-200 rounded w-40 mb-3 animate-pulse" />
+      <div className="grid grid-cols-1 gap-3">
+        <TopicCardSkeleton />
+        <TopicCardSkeleton />
+        <TopicCardSkeleton />
       </div>
     </div>
   );
@@ -46,6 +87,7 @@ function TopicCardSkeleton() {
 
 export default function TopicStep({
   topics,
+  groups,
   isLoading,
   onSelectTopic,
   onDirectInput,
@@ -54,71 +96,155 @@ export default function TopicStep({
   directKeyword,
   selectedTopic,
 }: TopicStepProps) {
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const canProceed = selectedTopic !== null || directKeyword.trim().length > 0;
+
+  // Use groups if available, fall back to flat topics
+  const hasGroups = groups && groups.length > 0;
+  const hasFlatTopics = !hasGroups && topics && topics.length > 0;
 
   return (
     <div className="max-w-3xl mx-auto">
-      {/* Seasonal banner */}
-      <div className="bg-[#E8F1FF] border border-[#B3D4FF] rounded-xl px-5 py-3 mb-6 flex items-center gap-2">
-        <span className="text-[#1B72FF] text-sm font-semibold">
-          {MONTH}월 추천 주제
-        </span>
-        <span className="text-gray-400 text-sm">·</span>
-        <span className="text-gray-600 text-sm">{HRD_BANNERS[MONTH]}</span>
+      {/* Seasonal banner + Calendar button */}
+      <div className="bg-[#E8F1FF] border border-[#B3D4FF] rounded-xl px-5 py-3 mb-6 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[#1B72FF] text-sm font-semibold shrink-0">
+            {MONTH}월 추천 주제
+          </span>
+          <span className="text-gray-400 text-sm shrink-0">·</span>
+          <span className="text-gray-600 text-sm truncate">{HRD_BANNERS[MONTH]}</span>
+        </div>
+        <button
+          onClick={() => setIsCalendarOpen(true)}
+          className="shrink-0 flex items-center gap-1.5 text-xs font-medium text-[#1B72FF] hover:text-[#1456CC] bg-white border border-[#B3D4FF] hover:border-[#1B72FF] px-3 py-1.5 rounded-lg transition-colors"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+          </svg>
+          전체 캘린더 보기
+        </button>
       </div>
 
-      {/* Topic cards */}
-      <div className="grid grid-cols-1 gap-4 mb-5">
-        {isLoading || !topics
-          ? Array.from({ length: 5 }).map((_, i) => (
-              <TopicCardSkeleton key={i} />
-            ))
-          : topics.map((topic, index) => {
-              const isSelected = selectedTopic?.title === topic.title;
-              return (
-                <div
-                  key={index}
-                  className={`border rounded-xl p-5 bg-white transition-all duration-150 cursor-pointer ${
-                    isSelected
-                      ? "border-[#1B72FF] shadow-md ring-1 ring-[#B3D4FF]"
-                      : "border-gray-100 hover:border-[#B3D4FF] hover:shadow-sm"
-                  }`}
-                  onClick={() => onSelectTopic(topic)}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-gray-900 font-semibold text-base mb-1.5 leading-snug">
-                        {topic.title}
-                      </h3>
-                      <p className="text-gray-500 text-sm leading-relaxed mb-3">
-                        {topic.angle}
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {topic.keywords.map((kw) => (
-                          <span
-                            key={kw}
-                            className="bg-[#E8F1FF] text-[#1B72FF] text-xs font-medium px-2.5 py-0.5 rounded-full"
-                          >
-                            {kw}
-                          </span>
-                        ))}
+      {/* Grouped topic cards */}
+      {isLoading ? (
+        <>
+          <GroupSkeleton />
+          <GroupSkeleton />
+          <GroupSkeleton />
+        </>
+      ) : hasGroups ? (
+        groups.map((group, gi) => {
+          const colors = getColorForKeyword(group.keyword);
+          const icon = getIconForKeyword(group.keyword);
+          return (
+            <div key={gi} className="mb-6">
+              {/* Group header */}
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-base">{icon}</span>
+                <h3 className={`text-sm font-bold ${colors.text}`}>{group.keyword}</h3>
+                <div className="flex-1 h-px bg-gray-100" />
+              </div>
+              {/* Topic cards */}
+              <div className="grid grid-cols-1 gap-3">
+                {group.topics.map((topic, ti) => {
+                  const isSelected = selectedTopic?.title === topic.title;
+                  return (
+                    <div
+                      key={ti}
+                      className={`border rounded-xl p-4 transition-all duration-150 cursor-pointer ${
+                        isSelected
+                          ? `${colors.border} shadow-md ring-1 ring-opacity-50 ${colors.bg}`
+                          : `border-gray-100 hover:${colors.border} hover:shadow-sm bg-white`
+                      }`}
+                      onClick={() => onSelectTopic(topic)}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-gray-900 font-semibold text-sm mb-1 leading-snug">
+                            {topic.title}
+                          </h4>
+                          <p className="text-gray-500 text-xs leading-relaxed mb-2">
+                            {topic.angle}
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {topic.keywords.map((kw) => (
+                              <span
+                                key={kw}
+                                className={`${colors.badge} text-[10px] font-medium px-2 py-0.5 rounded-full`}
+                              >
+                                {kw}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectTopic(topic);
+                            onNext();
+                          }}
+                          className="shrink-0 bg-[#1B72FF] hover:bg-[#1456CC] text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                        >
+                          선택 →
+                        </button>
                       </div>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectTopic(topic);
-                        onNext();
-                      }}
-                      className="shrink-0 bg-[#1B72FF] hover:bg-[#1456CC] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors duration-150 whitespace-nowrap"
-                    >
-                      이 주제로 →
-                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })
+      ) : hasFlatTopics ? (
+        /* Fallback: flat topic list (backward compat) */
+        <div className="grid grid-cols-1 gap-4 mb-5">
+          {topics!.map((topic, index) => {
+            const isSelected = selectedTopic?.title === topic.title;
+            return (
+              <div
+                key={index}
+                className={`border rounded-xl p-5 bg-white transition-all duration-150 cursor-pointer ${
+                  isSelected
+                    ? "border-[#1B72FF] shadow-md ring-1 ring-[#B3D4FF]"
+                    : "border-gray-100 hover:border-[#B3D4FF] hover:shadow-sm"
+                }`}
+                onClick={() => onSelectTopic(topic)}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-gray-900 font-semibold text-base mb-1.5 leading-snug">
+                      {topic.title}
+                    </h3>
+                    <p className="text-gray-500 text-sm leading-relaxed mb-3">
+                      {topic.angle}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {topic.keywords.map((kw) => (
+                        <span
+                          key={kw}
+                          className="bg-[#E8F1FF] text-[#1B72FF] text-xs font-medium px-2.5 py-0.5 rounded-full"
+                        >
+                          {kw}
+                        </span>
+                      ))}
+                    </div>
                   </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectTopic(topic);
+                      onNext();
+                    }}
+                    className="shrink-0 bg-[#1B72FF] hover:bg-[#1456CC] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+                  >
+                    이 주제로 →
+                  </button>
                 </div>
-              );
-            })}
-      </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
 
       {/* Refresh button */}
       <div className="flex justify-center mb-6">
@@ -175,6 +301,9 @@ export default function TopicStep({
           다음 →
         </button>
       </div>
+
+      {/* Calendar Modal */}
+      <CalendarModal isOpen={isCalendarOpen} onClose={() => setIsCalendarOpen(false)} />
     </div>
   );
 }

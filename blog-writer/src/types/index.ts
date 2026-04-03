@@ -5,6 +5,11 @@ export interface Topic {
   keywords: string[];
 }
 
+export interface TopicGroup {
+  keyword: string;
+  topics: Topic[];
+}
+
 export interface Section {
   id: string;
   heading: string;
@@ -50,6 +55,7 @@ export type SectionCount = 3 | 4 | 5;
 export interface AppState {
   currentStep: 1 | 2 | 3;
   suggestedTopics: Topic[] | null;
+  suggestedGroups: TopicGroup[] | null;
   isLoadingTopics: boolean;
   selectedTopic: Topic | null;
   directKeyword: string;

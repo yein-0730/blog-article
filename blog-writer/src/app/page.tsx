@@ -4,6 +4,7 @@ import { useReducer, useEffect, useCallback, useRef } from "react";
 import type {
   AppState,
   Topic,
+  TopicGroup,
   Tone,
   CharLength,
   Reader,
@@ -21,6 +22,7 @@ import { useToast } from "@/components/Toast";
 const initialState: AppState = {
   currentStep: 1,
   suggestedTopics: null,
+  suggestedGroups: null,
   isLoadingTopics: false,
   selectedTopic: null,
   directKeyword: "",
@@ -38,6 +40,7 @@ const initialState: AppState = {
 
 type Action =
   | { type: "SET_TOPICS"; payload: Topic[] }
+  | { type: "SET_GROUPS"; payload: TopicGroup[] }
   | { type: "SET_LOADING_TOPICS"; payload: boolean }
   | { type: "SELECT_TOPIC"; payload: Topic }
   | { type: "SET_DIRECT_KEYWORD"; payload: string }
@@ -59,6 +62,8 @@ function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "SET_TOPICS":
       return { ...state, suggestedTopics: action.payload };
+    case "SET_GROUPS":
+      return { ...state, suggestedGroups: action.payload };
     case "SET_LOADING_TOPICS":
       return { ...state, isLoadingTopics: action.payload };
     case "SELECT_TOPIC":
@@ -118,10 +123,16 @@ export default function Home() {
           (data as { error?: string })?.error || `서버 오류 (${res.status})`
         );
       }
-      const data = (await res.json()) as { topics?: Topic[] };
-      const newTopics = data.topics || [];
-      dispatch({ type: "SET_TOPICS", payload: newTopics });
-      previousTopicsRef.current = newTopics.map((t) => t.title);
+      const data = (await res.json()) as { groups?: TopicGroup[]; topics?: Topic[] };
+      if (data.groups && data.groups.length > 0) {
+        dispatch({ type: "SET_GROUPS", payload: data.groups });
+        const allTopics = data.groups.flatMap((g) => g.topics);
+        dispatch({ type: "SET_TOPICS", payload: allTopics });
+        previousTopicsRef.current = allTopics.map((t) => t.title);
+      } else if (data.topics) {
+        dispatch({ type: "SET_TOPICS", payload: data.topics });
+        previousTopicsRef.current = data.topics.map((t) => t.title);
+      }
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "주제를 불러오지 못했습니다.";
@@ -149,13 +160,22 @@ export default function Home() {
           (data as { error?: string })?.error || `서버 오류 (${res.status})`
         );
       }
-      const data = (await res.json()) as { topics?: Topic[] };
-      const newTopics = data.topics || [];
-      dispatch({ type: "SET_TOPICS", payload: newTopics });
-      previousTopicsRef.current = [
-        ...previousTopicsRef.current,
-        ...newTopics.map((t) => t.title),
-      ].slice(-20);
+      const data = (await res.json()) as { groups?: TopicGroup[]; topics?: Topic[] };
+      if (data.groups && data.groups.length > 0) {
+        dispatch({ type: "SET_GROUPS", payload: data.groups });
+        const allTopics = data.groups.flatMap((g) => g.topics);
+        dispatch({ type: "SET_TOPICS", payload: allTopics });
+        previousTopicsRef.current = [
+          ...previousTopicsRef.current,
+          ...allTopics.map((t) => t.title),
+        ].slice(-30);
+      } else if (data.topics) {
+        dispatch({ type: "SET_TOPICS", payload: data.topics });
+        previousTopicsRef.current = [
+          ...previousTopicsRef.current,
+          ...data.topics.map((t) => t.title),
+        ].slice(-30);
+      }
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "주제를 불러오지 못했습니다.";
@@ -417,6 +437,7 @@ export default function Home() {
         {state.currentStep === 1 && (
           <TopicStep
             topics={state.suggestedTopics}
+            groups={state.suggestedGroups}
             isLoading={state.isLoadingTopics}
             selectedTopic={state.selectedTopic}
             directKeyword={state.directKeyword}
