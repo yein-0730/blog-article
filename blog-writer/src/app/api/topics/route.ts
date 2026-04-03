@@ -228,13 +228,13 @@ AI 튜터, AI 코칭, 적응형 학습, AI 진단, 리더십, 소프트스킬
 }
 
 // GET: cached response for initial page load (revalidate every 2 hours)
-export const revalidate = 7200;
+export const revalidate = 86400;
 
 export async function GET() {
   try {
     const result = await generateTopics("HRD 담당자", []);
     return Response.json(result, {
-      headers: { "Cache-Control": "s-maxage=7200, stale-while-revalidate=3600" },
+      headers: { "Cache-Control": "s-maxage=86400, stale-while-revalidate=43200" },
     });
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);
