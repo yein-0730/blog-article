@@ -14,19 +14,19 @@ interface TopicStepProps {
 }
 
 const MONTH = new Date().getMonth() + 1;
-const SEASONAL_MAP: Record<number, string> = {
-  1: "연간 LMS 운영 계획 · 생성형 AI 교육 로드맵",
-  2: "온보딩 LMS 설계 · 생성형 AI 활용 콘텐츠 제작",
-  3: "온라인 교육과정 개편 · LMS 큐레이션 · 생성형 AI 교육 설계",
-  4: "법정의무교육 온라인 전환 · 생성형 AI 콘텐츠 자동화",
-  5: "LMS 데이터 분석 · 학습 대시보드 · 생성형 AI 교육 효과 측정",
-  6: "이러닝 기획 · 생성형 AI 콘텐츠 제작 · LMS 고도화",
-  7: "마이크로러닝 설계 · 생성형 AI 활용 교육과정 개발",
-  8: "생성형 AI 교육 설계 고도화 · LMS UX 개선",
-  9: "생성형 AI 교육 트렌드 · AX 교육 설계 · 블렌디드 러닝",
-  10: "LMS 예산 수립 · 에듀테크 트렌드 · 생성형 AI 교육 ROI",
-  11: "온라인 교육 성과 평가 · LMS ROI · 생성형 AI 교육 효과 분석",
-  12: "LMS 운영 회고 · 에듀테크 전략 · 생성형 AI 교육 계획",
+const HRD_BANNERS: Record<number, string> = {
+  1: "연간 교육 계획 실행 · LMS 운영 셋업 · AI 교육 로드맵 확정",
+  2: "상반기 공채 시작 · 신입사원 온보딩 설계 · MZ세대 AI 교육",
+  3: "공채 피크 · 산업안전교육 시작 · 신임 관리자 교육",
+  4: "HRD KOREA 컨퍼런스 · LMS 교체 검토 · AI 교육 트렌드",
+  5: "신입사원 온보딩 본격화 · 블렌디드 러닝 전환 · AI 실습 교육",
+  6: "상반기 성과 평가 · 안전교육 마감 · 하반기 교육 조정",
+  7: "하반기 교육 개막 · 임원 AI 전략교육 · 리더십 파이프라인",
+  8: "휴가철 자기주도 학습 · 마이크로러닝 · AI 콘텐츠 제작",
+  9: "내년 교육 계획 착수 · 하반기 공채 · CTF 컨퍼런스",
+  10: "내년 예산 확정 · 교육 ROI 입증 · HRD 트렌드 분석",
+  11: "법정의무교육 마감 · 연간 성과 보고 · 내년 예산 승인",
+  12: "LMS 갱신 결정 · 인사평가 연동 · 내년 AI 교육 확정",
 };
 
 function TopicCardSkeleton() {
@@ -64,7 +64,7 @@ export default function TopicStep({
           {MONTH}월 추천 주제
         </span>
         <span className="text-gray-400 text-sm">·</span>
-        <span className="text-gray-600 text-sm">{SEASONAL_MAP[MONTH]}</span>
+        <span className="text-gray-600 text-sm">{HRD_BANNERS[MONTH]}</span>
       </div>
 
       {/* Topic cards */}
