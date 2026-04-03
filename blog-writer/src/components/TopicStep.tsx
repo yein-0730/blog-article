@@ -32,31 +32,12 @@ const HRD_BANNERS: Record<number, string> = {
   12: "LMS 갱신 결정 · 인사평가↔교육 연동 · 내년 AI 교육 확정",
 };
 
-const KEYWORD_ICONS: Record<string, string> = {
-  "LMS": "📺",
-  "스킬 진단": "📊",
-  "AX 교육": "🤖",
+const MAIN_COLORS = {
+  bg: "bg-[#E8F1FF]/50",
+  border: "border-[#B3D4FF]",
+  badge: "bg-[#E8F1FF] text-[#1B72FF]",
+  text: "text-[#1B72FF]",
 };
-
-const KEYWORD_COLORS: Record<string, { bg: string; border: string; badge: string; text: string }> = {
-  "LMS": { bg: "bg-blue-50/50", border: "border-blue-200", badge: "bg-blue-100 text-blue-700", text: "text-blue-700" },
-  "스킬 진단": { bg: "bg-emerald-50/50", border: "border-emerald-200", badge: "bg-emerald-100 text-emerald-700", text: "text-emerald-700" },
-  "AX 교육": { bg: "bg-violet-50/50", border: "border-violet-200", badge: "bg-violet-100 text-violet-700", text: "text-violet-700" },
-};
-
-function getColorForKeyword(keyword: string) {
-  if (keyword.includes("LMS")) return KEYWORD_COLORS["LMS"];
-  if (keyword.includes("스킬") || keyword.includes("역량")) return KEYWORD_COLORS["스킬 진단"];
-  if (keyword.includes("AX") || keyword.includes("AI")) return KEYWORD_COLORS["AX 교육"];
-  return KEYWORD_COLORS["LMS"];
-}
-
-function getIconForKeyword(keyword: string) {
-  if (keyword.includes("LMS")) return KEYWORD_ICONS["LMS"];
-  if (keyword.includes("스킬") || keyword.includes("역량")) return KEYWORD_ICONS["스킬 진단"];
-  if (keyword.includes("AX") || keyword.includes("AI")) return KEYWORD_ICONS["AX 교육"];
-  return "📋";
-}
 
 function TopicCardSkeleton() {
   return (
@@ -134,14 +115,11 @@ export default function TopicStep({
         </>
       ) : hasGroups ? (
         groups.map((group, gi) => {
-          const colors = getColorForKeyword(group.keyword);
-          const icon = getIconForKeyword(group.keyword);
           return (
             <div key={gi} className="mb-6">
               {/* Group header */}
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-base">{icon}</span>
-                <h3 className={`text-sm font-bold ${colors.text}`}>{group.keyword}</h3>
+                <h3 className={`text-sm font-bold ${MAIN_COLORS.text}`}>{group.keyword}</h3>
                 <div className="flex-1 h-px bg-gray-100" />
               </div>
               {/* Topic cards */}
@@ -153,8 +131,8 @@ export default function TopicStep({
                       key={ti}
                       className={`border rounded-xl p-4 transition-all duration-150 cursor-pointer ${
                         isSelected
-                          ? `${colors.border} shadow-md ring-1 ring-opacity-50 ${colors.bg}`
-                          : `border-gray-100 hover:${colors.border} hover:shadow-sm bg-white`
+                          ? "border-[#1B72FF] shadow-md ring-1 ring-[#B3D4FF] bg-[#E8F1FF]/30"
+                          : "border-gray-100 hover:border-[#B3D4FF] hover:shadow-sm bg-white"
                       }`}
                       onClick={() => onSelectTopic(topic)}
                     >
@@ -170,7 +148,7 @@ export default function TopicStep({
                             {topic.keywords.map((kw) => (
                               <span
                                 key={kw}
-                                className={`${colors.badge} text-[10px] font-medium px-2 py-0.5 rounded-full`}
+                                className="bg-[#E8F1FF] text-[#1B72FF] text-[10px] font-medium px-2 py-0.5 rounded-full"
                               >
                                 {kw}
                               </span>
