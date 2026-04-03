@@ -106,6 +106,32 @@ export default function Home() {
   // Track previously shown topics to avoid duplicates on refresh
   const previousTopicsRef = useRef<string[]>([]);
 
+  // Initial load: GET (cached, fast)
+  const fetchInitialTopics = useCallback(async () => {
+    dispatch({ type: "SET_LOADING_TOPICS", payload: true });
+    dispatch({ type: "SET_ERROR", payload: null });
+    try {
+      const res = await fetch("/api/topics");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(
+          (data as { error?: string })?.error || `서버 오류 (${res.status})`
+        );
+      }
+      const data = (await res.json()) as { topics?: Topic[] };
+      const newTopics = data.topics || [];
+      dispatch({ type: "SET_TOPICS", payload: newTopics });
+      previousTopicsRef.current = newTopics.map((t) => t.title);
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "주제를 불러오지 못했습니다.";
+      dispatch({ type: "SET_ERROR", payload: msg });
+    } finally {
+      dispatch({ type: "SET_LOADING_TOPICS", payload: false });
+    }
+  }, []);
+
+  // Refresh: POST (fresh generation, no cache)
   const fetchTopics = useCallback(async () => {
     dispatch({ type: "SET_LOADING_TOPICS", payload: true });
     dispatch({ type: "SET_ERROR", payload: null });
@@ -126,11 +152,10 @@ export default function Home() {
       const data = (await res.json()) as { topics?: Topic[] };
       const newTopics = data.topics || [];
       dispatch({ type: "SET_TOPICS", payload: newTopics });
-      // Add new topics to previous list
       previousTopicsRef.current = [
         ...previousTopicsRef.current,
         ...newTopics.map((t) => t.title),
-      ].slice(-20); // keep last 20 to avoid prompt bloat
+      ].slice(-20);
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "주제를 불러오지 못했습니다.";
@@ -141,8 +166,8 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    fetchTopics();
-  }, [fetchTopics]);
+    fetchInitialTopics();
+  }, [fetchInitialTopics]);
 
   // Generate article via multi-step API calls
   const generateArticle = useCallback(async () => {

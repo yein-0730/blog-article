@@ -149,16 +149,12 @@ const TOPICS_TOOL: Anthropic.Tool = {
   },
 };
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json().catch(() => ({}));
-    const reader = body.reader ?? "HRD 담당자";
-    const previousTopics: string[] = body.previousTopics ?? [];
-
-    const month = new Date().getMonth() + 1;
-    const year = new Date().getFullYear();
-    const hrd = HRD_CALENDAR[month] ?? HRD_CALENDAR[1];
-    const angle = ANGLES[Math.floor(Math.random() * ANGLES.length)];
+// Shared topic generation logic
+async function generateTopics(reader: string, previousTopics: string[]) {
+  const month = new Date().getMonth() + 1;
+  const year = new Date().getFullYear();
+  const hrd = HRD_CALENDAR[month] ?? HRD_CALENDAR[1];
+  const angle = ANGLES[Math.floor(Math.random() * ANGLES.length)];
 
     const exclude = previousTopics.length > 0
       ? `\n\n[제외할 주제]\n${previousTopics.join(", ")}`
@@ -214,7 +210,7 @@ AI 튜터, AI 코칭, 적응형 학습, AI 진단, 리더십, 소프트스킬
 
     const result = block.input as { topics?: unknown[] };
     if (result.topics && result.topics.length > 0) {
-      return Response.json(result);
+      return result;
     }
 
     // Fallback: if tool_use returned empty, try plain text
@@ -225,13 +221,42 @@ AI 튜터, AI 코칭, 적응형 학습, AI 진단, 리더십, 소프트스킬
         jsonText = jsonText.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
       }
       const parsed = JSON.parse(jsonText);
-      if (parsed.topics?.length > 0) return Response.json(parsed);
+      if (parsed.topics?.length > 0) return parsed;
     }
 
     throw new Error("주제 생성 결과가 비어있습니다");
+}
+
+// GET: cached response for initial page load (revalidate every 2 hours)
+export const revalidate = 7200;
+
+export async function GET() {
+  try {
+    const result = await generateTopics("HRD 담당자", []);
+    return Response.json(result, {
+      headers: { "Cache-Control": "s-maxage=7200, stale-while-revalidate=3600" },
+    });
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);
-    console.error("Topics API error:", errMsg);
+    console.error("Topics GET error:", errMsg);
+    return Response.json(
+      { error: `주제 추천 중 오류가 발생했습니다.` },
+      { status: 500 }
+    );
+  }
+}
+
+// POST: fresh generation for "다른 주제 추천받기" button
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const reader = body.reader ?? "HRD 담당자";
+    const previousTopics: string[] = body.previousTopics ?? [];
+    const result = await generateTopics(reader, previousTopics);
+    return Response.json(result);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error("Topics POST error:", errMsg);
     return Response.json(
       { error: `주제 추천 중 오류가 발생했습니다.` },
       { status: 500 }
