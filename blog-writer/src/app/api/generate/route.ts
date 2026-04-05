@@ -248,7 +248,7 @@ async function handleOutline(body: Record<string, unknown>) {
     model: "claude-haiku-4-5-20251001",
     max_tokens: 1500,
     temperature: 0.7,
-    system: "당신은 B2B 교육업 블로그 비주얼 전문가입니다.",
+    system: "당신은 B2B 교육업 블로그 비주얼 전문가입니다.\n\n[이미지 선정 규칙]\n- 인물의 얼굴이 보이지 않는 사진을 우선 선택 (뒷모습, 실루엣, 오버헤드 뷰, 손만 보이는 작업 장면 등)\n- 동양인 또는 인종이 특정되지 않는 이미지 선호\n- 오피스/교육 환경, 노트북·화이트보드·회의실 등 비즈니스 맥락\n- prompt에 'back view', 'overhead', 'hands only', 'no face', 'minimal' 등의 키워드를 포함하세요",
     tools: [{
       name: "save_visuals",
       description: "섹션별 시각화 프롬프트를 저장합니다",
