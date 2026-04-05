@@ -9,20 +9,50 @@ interface AuthButtonProps {
   onAuthChange: () => void;
 }
 
+type AuthMode = "login" | "signup";
+
 export default function AuthButton({ user, onAuthChange }: AuthButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(false);
 
-  const handleLogin = async () => {
+  const resetForm = () => {
+    setEmail("");
+    setPassword("");
+    setMessage("");
+    setIsError(false);
+  };
+
+  const handleSubmit = async () => {
     setLoading(true);
     setMessage("");
-    const { error } = await supabase.auth.signInWithOtp({ email });
-    if (error) {
-      setMessage("로그인 링크 전송에 실패했습니다.");
+    setIsError(false);
+
+    if (mode === "signup") {
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        setMessage(error.message === "User already registered" ? "이미 가입된 이메일입니다. 로그인해주세요." : "가입에 실패했습니다.");
+        setIsError(true);
+        if (error.message === "User already registered") setMode("login");
+      } else {
+        setMessage("가입 완료! 로그인되었습니다.");
+        onAuthChange();
+        setTimeout(() => setIsOpen(false), 1000);
+      }
     } else {
-      setMessage("이메일을 확인해주세요! 로그인 링크를 보냈습니다.");
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setMessage("이메일 또는 비밀번호가 올바르지 않습니다.");
+        setIsError(true);
+      } else {
+        onAuthChange();
+        setIsOpen(false);
+        resetForm();
+      }
     }
     setLoading(false);
   };
@@ -68,34 +98,51 @@ export default function AuthButton({ user, onAuthChange }: AuthButtonProps) {
   return (
     <div className="relative">
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => { setIsOpen(!isOpen); resetForm(); }}
         className="text-sm text-[#1B72FF] hover:text-[#1456CC] border border-[#B3D4FF] hover:border-[#1B72FF] px-3 py-1.5 rounded-lg transition-colors font-medium"
       >
         로그인
       </button>
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="fixed inset-0 z-40" onClick={() => { setIsOpen(false); resetForm(); }} />
           <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-gray-200 rounded-xl shadow-lg z-50 p-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-1">이메일로 로그인</h3>
-            <p className="text-xs text-gray-400 mb-3">로그인하면 아티클 히스토리가 저장됩니다.</p>
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">
+              {mode === "login" ? "로그인" : "회원가입"}
+            </h3>
+            <p className="text-xs text-gray-400 mb-3">
+              {mode === "login" ? "로그인하면 아티클 히스토리가 저장됩니다." : "이메일과 비밀번호를 입력해주세요."}
+            </p>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="이메일 주소"
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B3D4FF] focus:border-[#1B72FF] mb-2"
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="비밀번호 (6자 이상)"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B3D4FF] focus:border-[#1B72FF] mb-3"
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
             />
             <button
-              onClick={handleLogin}
-              disabled={loading || !email.includes("@")}
-              className="w-full bg-[#1B72FF] hover:bg-[#1456CC] disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-medium py-2 rounded-lg transition-colors"
+              onClick={handleSubmit}
+              disabled={loading || !email.includes("@") || password.length < 6}
+              className="w-full bg-[#1B72FF] hover:bg-[#1456CC] disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-medium py-2 rounded-lg transition-colors mb-2"
             >
-              {loading ? "전송 중..." : "로그인 링크 받기"}
+              {loading ? "처리 중..." : mode === "login" ? "로그인" : "가입하기"}
+            </button>
+            <button
+              onClick={() => { setMode(mode === "login" ? "signup" : "login"); setMessage(""); }}
+              className="w-full text-xs text-gray-400 hover:text-[#1B72FF] transition-colors"
+            >
+              {mode === "login" ? "계정이 없으신가요? 회원가입" : "이미 계정이 있으신가요? 로그인"}
             </button>
             {message && (
-              <p className={`text-xs mt-2 ${message.includes("실패") ? "text-red-500" : "text-green-600"}`}>
+              <p className={`text-xs mt-2 ${isError ? "text-red-500" : "text-green-600"}`}>
                 {message}
               </p>
             )}

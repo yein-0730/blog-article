@@ -443,8 +443,9 @@ export default function Home() {
               AI 기반 HRD 마케팅 콘텐츠 자동화
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <StepIndicator currentStep={state.currentStep} />
+            <div className="w-px h-6 bg-gray-200 mx-2" />
             {user && (
               <button
                 onClick={() => setIsHistoryOpen(true)}
