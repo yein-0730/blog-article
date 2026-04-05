@@ -1,6 +1,8 @@
 "use client";
 
-import { useReducer, useEffect, useCallback, useRef } from "react";
+import { useReducer, useEffect, useCallback, useRef, useState } from "react";
+import type { User } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 import type {
   AppState,
   Topic,
@@ -15,6 +17,8 @@ import StepIndicator from "@/components/StepIndicator";
 import TopicStep from "@/components/TopicStep";
 import SettingStep from "@/components/SettingStep";
 import ResultStep from "@/components/ResultStep";
+import AuthButton from "@/components/AuthButton";
+import HistoryModal from "@/components/HistoryModal";
 import { useToast } from "@/components/Toast";
 
 // ─── State Management ────────────────────────────────────────────────────────
@@ -106,6 +110,17 @@ function reducer(state: AppState, action: Action): AppState {
 export default function Home() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { showToast, ToastComponent } = useToast();
+  const [user, setUser] = useState<User | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+  // Auth state
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Fetch topics on mount
   // Track previously shown topics to avoid duplicates on refresh
@@ -261,6 +276,19 @@ export default function Home() {
       };
 
       dispatch({ type: "SET_ARTICLE", payload: article });
+
+      // Save to history if logged in
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser) {
+        await supabase.from("article_history").insert({
+          user_id: currentUser.id,
+          title: article.title,
+          keyword,
+          tone: state.tone,
+          reader: state.reader,
+          article,
+        });
+      }
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "아티클 생성에 실패했습니다.";
@@ -397,6 +425,11 @@ export default function Home() {
     fetchTopics();
   };
 
+  const handleLoadFromHistory = (article: Article) => {
+    dispatch({ type: "SET_ARTICLE", payload: article });
+    dispatch({ type: "SET_STEP", payload: 3 });
+  };
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -410,7 +443,21 @@ export default function Home() {
               AI 기반 HRD 마케팅 콘텐츠 자동화
             </p>
           </div>
-          <StepIndicator currentStep={state.currentStep} />
+          <div className="flex items-center gap-3">
+            <StepIndicator currentStep={state.currentStep} />
+            {user && (
+              <button
+                onClick={() => setIsHistoryOpen(true)}
+                className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-[#1B72FF] border border-gray-200 hover:border-[#B3D4FF] px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                히스토리
+              </button>
+            )}
+            <AuthButton user={user} onAuthChange={() => supabase.auth.getUser().then(({ data }) => setUser(data.user))} />
+          </div>
         </div>
       </header>
 
@@ -496,6 +543,11 @@ export default function Home() {
       </main>
 
       {ToastComponent}
+      <HistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        onLoad={handleLoadFromHistory}
+      />
     </div>
   );
 }
