@@ -90,7 +90,7 @@ const OUTLINE_TOOL: Anthropic.Tool = {
   input_schema: {
     type: "object",
     properties: {
-      title: { type: "string", description: "H1 블로그 제목. 주요 키워드를 앞부분에 배치. 30자 내외" },
+      title: { type: "string", description: "H1 블로그 제목. 30자 내외. 아래 규칙 적용: (1)주요 키워드를 앞부분에 배치 (2)시의성 신호 포함: 연도·분기·월, 또는 지금 시점의 HRD 상황 암시 (3)끌리는 제목 공식 중 택1: 숫자형('~3가지','~5단계'), 대비형('~이 아니라 ~이다'), 질문형('왜 ~인가'), 콜론형('키워드: 구체적 가치'), 도전형('~없이 ~하는 법') (4)HRD 담당자가 '나한테 필요한 글이네' 느끼게" },
       intro: { type: "string", description: "도입부 2~3문단. 매번 다른 방식으로 시작할 것 — 아래 훅 중 랜덤 선택: (1)구체적 현장 상황 묘사 (2)의외의 통계로 시작 (3)흔한 오해를 뒤집는 질문 (4)가상 사례 스케치 (5)시의적 이슈 언급. '많은 기업이~', '최근~' 같은 뻔한 시작 금지" },
       headings: {
         type: "array",
@@ -214,7 +214,7 @@ async function handleOutline(body: Record<string, unknown>) {
       tool_choice: { type: "tool", name: "save_outline" },
       messages: [{
         role: "user",
-        content: `키워드/주제: ${keyword}\n${readerContext}\n목표 분량: 약 ${charLength}자\n섹션 수: ${sectionCount}개\n\nH1 제목에 주요 키워드를 앞부분에 배치하세요.\nH2 소제목에 번호를 붙이지 마세요. 검색 키워드를 포함한 의문형 또는 명사형으로 작성하세요.\n\n도입부는 매번 다른 훅으로 시작하세요. 다음 중 하나를 선택:\n- 구체적 현장 상황 스케치 ("회의실에서 교육 계획안을 펼쳐놓고~")\n- 의외의 통계/데이터로 시작\n- 흔한 오해를 정면으로 뒤집는 질문\n- 가상의 HRD 담당자 사례\n- 시의적 이슈나 변화 언급\n"많은 기업이~", "최근 들어~", "오늘날~" 같은 뻔한 시작은 절대 금지.\n\n마무리는 핵심 메시지 재강조 → 서비스 연결 1문장 → 부드러운 CTA로 구성하세요.\n\nsave_outline 도구로 저장해주세요.`,
+        content: `키워드/주제: ${keyword}\n${readerContext}\n목표 분량: 약 ${charLength}자\n섹션 수: ${sectionCount}개\n\n[제목 규칙]\n- 주요 키워드를 앞부분에 배치\n- 시의성 반영: 지금 이 시점(${new Date().getFullYear()}년 ${new Date().getMonth()+1}월, Q${Math.ceil((new Date().getMonth()+1)/3)})에 HRD 담당자가 '딱 지금 필요한 글'이라 느끼게\n- 끌리는 공식 활용: 숫자형("~3가지"), 대비형("~이 아니라 ~이다"), 콜론형("키워드: 가치"), 도전형("~없이 ~하는 법")\n- 뻔한 제목 금지: "~의 중요성", "~에 대하여", "~알아보기"\n\n[H2 소제목]\n번호 붙이지 마세요. 검색 키워드를 포함한 의문형 또는 명사형으로 작성하세요.\n\n[도입부]\n매번 다른 훅으로 시작하세요:\n- 구체적 현장 상황 스케치 ("회의실에서 교육 계획안을 펼쳐놓고~")\n- 의외의 통계/데이터로 시작\n- 흔한 오해를 정면으로 뒤집는 질문\n- 가상의 HRD 담당자 사례\n- 시의적 이슈나 변화 언급\n"많은 기업이~", "최근 들어~", "오늘날~" 같은 뻔한 시작 절대 금지.\n\n[마무리]\n핵심 메시지 재강조 → 서비스 연결 1문장 → 부드러운 CTA\n\nsave_outline 도구로 저장해주세요.`,
       }],
     }),
     client.messages.create({
