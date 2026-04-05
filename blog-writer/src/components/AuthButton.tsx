@@ -28,26 +28,29 @@ export default function AuthButton({ user, onAuthChange, onHistoryOpen }: AuthBu
     setIsError(false);
   };
 
+  const toEmail = (id: string) => id.includes("@") ? id : `${id}@blog.app`;
+
   const handleSubmit = async () => {
     setLoading(true);
     setMessage("");
     setIsError(false);
+    const authEmail = toEmail(email);
 
     if (mode === "signup") {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { error } = await supabase.auth.signUp({ email: authEmail, password });
       if (error) {
-        setMessage(error.message === "User already registered" ? "이미 가입된 이메일입니다. 로그인해주세요." : "가입에 실패했습니다.");
+        setMessage(error.message === "User already registered" ? "이미 존재하는 아이디입니다. 로그인해주세요." : "가입에 실패했습니다.");
         setIsError(true);
         if (error.message === "User already registered") setMode("login");
       } else {
-        setMessage("가입 완료! 로그인되었습니다.");
+        setMessage("가입 완료!");
         onAuthChange();
         setTimeout(() => setIsOpen(false), 1000);
       }
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password });
       if (error) {
-        setMessage("이메일 또는 비밀번호가 올바르지 않습니다.");
+        setMessage("아이디 또는 비밀번호가 올바르지 않습니다.");
         setIsError(true);
       } else {
         onAuthChange();
@@ -72,16 +75,16 @@ export default function AuthButton({ user, onAuthChange, onHistoryOpen }: AuthBu
           className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 hover:border-gray-300 px-3 py-1.5 rounded-lg transition-colors"
         >
           <div className="w-6 h-6 rounded-full bg-[#1B72FF] text-white flex items-center justify-center text-xs font-bold">
-            {user.email?.[0]?.toUpperCase() ?? "U"}
+            {user.email?.split("@")[0]?.[0]?.toUpperCase() ?? "U"}
           </div>
-          <span className="hidden sm:inline max-w-[120px] truncate">{user.email}</span>
+          <span className="hidden sm:inline max-w-[120px] truncate">{user.email?.split("@")[0]}</span>
         </button>
         {isOpen && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
             <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1">
               <div className="px-3 py-2 text-xs text-gray-400 truncate border-b border-gray-100">
-                {user.email}
+                {user.email?.split("@")[0]}
               </div>
               {onHistoryOpen && (
                 <button
@@ -123,13 +126,13 @@ export default function AuthButton({ user, onAuthChange, onHistoryOpen }: AuthBu
               {mode === "login" ? "로그인" : "회원가입"}
             </h3>
             <p className="text-xs text-gray-400 mb-3">
-              {mode === "login" ? "로그인하면 아티클 히스토리가 저장됩니다." : "이메일과 비밀번호를 입력해주세요."}
+              {mode === "login" ? "로그인하면 아티클 히스토리가 저장됩니다." : "아이디와 비밀번호를 설정해주세요."}
             </p>
             <input
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="이메일 주소"
+              placeholder="아이디"
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#B3D4FF] focus:border-[#1B72FF] mb-2"
             />
             <input
@@ -142,7 +145,7 @@ export default function AuthButton({ user, onAuthChange, onHistoryOpen }: AuthBu
             />
             <button
               onClick={handleSubmit}
-              disabled={loading || !email.includes("@") || password.length < 6}
+              disabled={loading || email.trim().length < 2 || password.length < 6}
               className="w-full bg-[#1B72FF] hover:bg-[#1456CC] disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-medium py-2 rounded-lg transition-colors mb-2"
             >
               {loading ? "처리 중..." : mode === "login" ? "로그인" : "가입하기"}
