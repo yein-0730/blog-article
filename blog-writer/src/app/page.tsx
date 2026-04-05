@@ -278,16 +278,21 @@ export default function Home() {
       dispatch({ type: "SET_ARTICLE", payload: article });
 
       // Save to history if logged in
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (currentUser) {
-        await supabase.from("article_history").insert({
-          user_id: currentUser.id,
-          title: article.title,
-          keyword,
-          tone: state.tone,
-          reader: state.reader,
-          article,
-        });
+      try {
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (currentUser) {
+          const { error: saveError } = await supabase.from("article_history").insert({
+            user_id: currentUser.id,
+            title: article.title,
+            keyword,
+            tone: state.tone,
+            reader: state.reader,
+            article,
+          });
+          if (saveError) console.error("히스토리 저장 실패:", saveError.message);
+        }
+      } catch (saveErr) {
+        console.error("히스토리 저장 오류:", saveErr);
       }
     } catch (err) {
       const msg =
@@ -446,18 +451,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <StepIndicator currentStep={state.currentStep} />
             <div className="w-px h-6 bg-gray-200 mx-2" />
-            {user && (
-              <button
-                onClick={() => setIsHistoryOpen(true)}
-                className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-[#1B72FF] border border-gray-200 hover:border-[#B3D4FF] px-3 py-1.5 rounded-lg transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
-                히스토리
-              </button>
-            )}
-            <AuthButton user={user} onAuthChange={() => supabase.auth.getUser().then(({ data }) => setUser(data.user))} />
+            <AuthButton user={user} onAuthChange={() => supabase.auth.getUser().then(({ data }) => setUser(data.user))} onHistoryOpen={() => setIsHistoryOpen(true)} />
           </div>
         </div>
       </header>
