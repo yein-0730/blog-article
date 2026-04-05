@@ -20,18 +20,6 @@ interface HistoryModalProps {
   onLoad: (article: Article) => void;
 }
 
-const TONE_LABELS: Record<string, string> = {
-  professional: "전문적",
-  friendly: "친근한",
-  challenging: "도전적",
-};
-
-const READER_LABELS: Record<string, string> = {
-  hrd: "HRD 담당자",
-  clo: "CLO·교육팀장",
-  hrPlanner: "HR 기획자",
-  eduOperator: "교육 운영자",
-};
 
 export default function HistoryModal({ isOpen, onClose, onLoad }: HistoryModalProps) {
   const [items, setItems] = useState<HistoryItem[]>([]);
@@ -119,28 +107,16 @@ export default function HistoryModal({ isOpen, onClose, onLoad }: HistoryModalPr
                       <h3 className="text-sm font-semibold text-gray-900 truncate">
                         {item.title}
                       </h3>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-xs text-gray-400">{formatDate(item.created_at)}</span>
-                        {item.tone && (
-                          <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
-                            {TONE_LABELS[item.tone] ?? item.tone}
-                          </span>
-                        )}
-                        {item.reader && (
-                          <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
-                            {READER_LABELS[item.reader] ?? item.reader}
-                          </span>
-                        )}
-                      </div>
+                      <span className="text-xs text-gray-400 mt-1">{formatDate(item.created_at)}</span>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           onLoad(item.article);
                           onClose();
                         }}
-                        className="text-xs text-[#1B72FF] hover:text-[#1456CC] font-medium px-2 py-1 rounded hover:bg-[#E8F1FF] transition-colors"
+                        className="text-xs bg-[#1B72FF] hover:bg-[#1456CC] text-white font-medium px-3 py-1.5 rounded-lg transition-colors"
                       >
                         불러오기
                       </button>
@@ -149,7 +125,7 @@ export default function HistoryModal({ isOpen, onClose, onLoad }: HistoryModalPr
                           e.stopPropagation();
                           handleDelete(item.id);
                         }}
-                        className="text-xs text-gray-300 hover:text-red-500 px-1.5 py-1 rounded hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                        className="text-xs text-gray-300 hover:text-red-500 px-1.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
                       >
                         삭제
                       </button>
